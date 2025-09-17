@@ -67,6 +67,14 @@ async function handleRequest(request: Request): Promise<Response> {
           "Expires": "0",
         },
       });
+    } else if (path === "/health") {
+      // Health check endpoint for Docker
+      return new Response("OK", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      });
     } else {
       // 404 for unknown paths
       return new Response("Not Found", {
