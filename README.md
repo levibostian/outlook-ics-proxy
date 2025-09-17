@@ -8,7 +8,8 @@ This is a small and simple tool to get around this bug. It's a simple proxy serv
 
 - **🚀 Real-time Proxying**: Instantly fetches and serves ICS calendar files
 - **🔧 User-Agent Spoofing**: Uses Chrome user-agent to bypass Outlook 500 errors
-- **🐳 Docker Ready**: Includes Docker support with multi-stage builds
+- **� Token Authentication**: Secure access with configurable access tokens
+- **�🐳 Docker Ready**: Includes Docker support with multi-stage builds
 - **📊 Health Monitoring**: Built-in health check endpoint
 - **🔒 Secure**: Runs as non-root user in container
 - **📝 Comprehensive Logging**: Detailed request/response logging
@@ -19,6 +20,7 @@ This is a small and simple tool to get around this bug. It's a simple proxy serv
 
 - **Docker** this application is setup to run Deno applications in Docker containers
 - **ICS Calendar URL** from Outlook or compatible service
+- **Access Token** a secure token for authentication (generate a random string)
 
 ### 2. Get Your ICS URL
 
@@ -29,23 +31,47 @@ This is a small and simple tool to get around this bug. It's a simple proxy serv
 ### 3. Deploy Service
 
 ```bash
-docker run -p 8000:8000 -e ICS_URL="https://your-calendar-url.com/calendar.ics" ghcr.io/levibostian/ics-outlook-proxy:latest
+docker run -p 8000:8000 \
+  -e ICS_URL="https://your-calendar-url.com/calendar.ics" \
+  -e ACCESS_TOKEN="your-secret-token-here" \
+  ghcr.io/levibostian/ics-outlook-proxy:latest
 ```
 
 ### 4. Get a public URL
 
-`cloudflared tunnel` is a great tool. It allows you to expose your local server to the internet securely. Use this URL in your calendar app instead of the Outlook URL. 
+`cloudflared tunnel` is a great tool. It allows you to expose your local server to the internet securely. Use this URL in your calendar app instead of the Outlook URL.
+
+### 5. Use the Calendar URL
+
+Your calendar application should subscribe to:
+```
+https://your-public-domain.com/calendar.ics?token=your-secret-token-here
+```
+
+**Important**: Make sure to include the `token` query parameter with your secret token, otherwise you'll get a 401 Unauthorized error. 
 
 ## Configuration
 
 The service can be configured using environment variables:
 
 - **`ICS_URL`**: The source ICS calendar URL (required)
+- **`ACCESS_TOKEN`**: Secret token for authentication (required)
 - **`PORT`**: Server port (default: 8000)
+
+## Authentication
+
+The service now requires token-based authentication for accessing calendar data:
+
+- **Endpoint**: `GET /calendar.ics?token=<ACCESS_TOKEN>`
+- **Token Validation**: Compares provided token with `ACCESS_TOKEN` environment variable
+- **Error Handling**: Returns 401 Unauthorized for missing or invalid tokens
+
+**Security Note**: Generate a strong, random token for the `ACCESS_TOKEN` environment variable. This token will be visible in your calendar application's subscription URL, so treat it as a secret.
 
 ## Monitoring
 
-- **Health Check**: `GET /health`
+- **Health Check**: `GET /health` (no authentication required)
+- **Calendar Access**: `GET /calendar.ics?token=<token>` (requires valid token)
 - **Logs**: Detailed request/response logging with timestamps
 - **Status**: HTTP status codes and error messages
 

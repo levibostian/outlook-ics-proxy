@@ -4,15 +4,16 @@
  * Deno web server that proxies ICS calendar files from Outlook. 
  * 
  * Usage: 
- *   # Use custom URL via environment variable
- *   ICS_URL="https://your-calendar-url.com/calendar.ics" deno run --allow-net --allow-env proxy.ts
+ *   # Use custom URL and token via environment variables
+ *   ICS_URL="https://your-calendar-url.com/calendar.ics" ACCESS_TOKEN="your-secret-token" deno run --allow-net --allow-env proxy.ts
  * 
  * Endpoints:
- *   GET /calendar.ics - Downloads and returns the ICS calendar file
- *   GET / - Health check endpoint
+ *   GET /calendar.ics?token=<ACCESS_TOKEN> - Downloads and returns the ICS calendar file (requires valid token)
+ *   GET /health - Health check endpoint
  */
 
 const ICS_URL = Deno.env.get("ICS_URL")!
+const ACCESS_TOKEN = Deno.env.get("ACCESS_TOKEN")!
 const PORT = parseInt(Deno.env.get("PORT") || "8000");
 
 async function downloadICSFile(): Promise<string> {
@@ -54,6 +55,29 @@ async function handleRequest(request: Request): Promise<Response> {
   
   try {
     if (path === "/calendar.ics") {
+      // Check for required token parameter
+      const token = url.searchParams.get("token");
+      
+      if (!token) {
+        console.warn(`⚠️  Unauthorized access attempt - missing token parameter`);
+        return new Response("Unauthorized: Token parameter required", {
+          status: 401,
+          headers: {
+            "Content-Type": "text/plain",
+          },
+        });
+      }
+      
+      if (token !== ACCESS_TOKEN) {
+        console.warn(`⚠️  Unauthorized access attempt - invalid token`);
+        return new Response("Unauthorized: Invalid token", {
+          status: 401,
+          headers: {
+            "Content-Type": "text/plain",
+          },
+        });
+      }
+      
       // Download and return the ICS file
       const icsContent = await downloadICSFile();
       
@@ -100,8 +124,10 @@ async function handleRequest(request: Request): Promise<Response> {
 if (import.meta.main) {
   console.log(`🚀 Starting ICS Proxy Server on port ${PORT}`);
   console.log(`🔗 ICS URL source: ${Deno.env.get("ICS_URL") ? 'Environment variable (ICS_URL)' : 'None!'}`);
-  console.log(`📡 Endpoints:`);  
-  console.log(`   GET http://localhost:${PORT}/calendar.ics - Download ICS file`);
+  console.log(`� Access token: ${Deno.env.get("ACCESS_TOKEN") ? 'Configured' : 'None!'}`);
+  console.log(`�📡 Endpoints:`);  
+  console.log(`   GET http://localhost:${PORT}/calendar.ics?token=<ACCESS_TOKEN> - Download ICS file (requires token)`);
+  console.log(`   GET http://localhost:${PORT}/health - Health check`);
   console.log(`\n⏹️  Press Ctrl+C to stop the server\n`);
   
   Deno.serve({ port: PORT }, handleRequest);
